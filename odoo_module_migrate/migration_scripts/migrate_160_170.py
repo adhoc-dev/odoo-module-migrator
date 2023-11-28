@@ -7,6 +7,7 @@ import sys
 import os
 import ast
 from typing import Any
+from ..tools import _get_files
 
 empty_list = ast.parse("[]").body[0].value
 
@@ -236,13 +237,6 @@ def replace_read_group_signature(logger, filename):
             file.write(new_all)
 
 
-def _get_files(module_path, reformat_file_ext):
-    """Get files to be reformatted."""
-    file_paths = list()
-    if not module_path.is_dir():
-        raise Exception(f"'{module_path}' is not a directory")
-    file_paths.extend(module_path.rglob("*" + reformat_file_ext))
-    return file_paths
 
 
 def _check_open_form_view(logger, file_path: Path):
