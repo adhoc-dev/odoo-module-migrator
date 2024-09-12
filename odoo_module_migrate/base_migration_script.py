@@ -163,7 +163,12 @@ class BaseMigrationScript(object):
                 ):
                     # [(model_name, old_field_name, new_field_name, more_info), ...)]
                     new_rules = [
-                        [change["model"], change["old_name"], change["new_name"], change["notes"]]
+                        [
+                            change["model"],
+                            change["old_name"],
+                            change["new_name"],
+                            change["notes"],
+                        ]
                     ]
                     rules["_RENAMED_FIELDS"]["doc"].extend(new_rules)
 
