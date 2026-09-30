@@ -10,5 +10,6 @@
     ],
     'data': [
         'views/res_partner.xml',
+        'security/ir.access.csv',
     ],
 }
