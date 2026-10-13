@@ -162,7 +162,8 @@ class BaseMigrationScript(object):
         # Read from controller
         data_version_changes = self._get_controller_data(migrate_from_to)
         if data_version_changes:
-            for change in data_version_changes.values():
+            unhandled = {}
+            for change_id, change in data_version_changes.items():
                 # {'2': {
                 #     'change_type': 'rename',
                 #     'major_version_id': '17.0',
@@ -185,7 +186,7 @@ class BaseMigrationScript(object):
                     ]
                     rules["_RENAMED_MODELS"]["doc"].extend(new_rules)
 
-                if (
+                elif (
                     change["change_type"] == "rename"
                     and change["model_type"] == "field"
                 ):
@@ -200,7 +201,7 @@ class BaseMigrationScript(object):
                     ]
                     rules["_RENAMED_FIELDS"]["doc"].extend(new_rules)
 
-                if (
+                elif (
                     change["change_type"] == "remove"
                     and change["model_type"] == "model"
                 ):
@@ -208,7 +209,7 @@ class BaseMigrationScript(object):
                     new_rules = [[change["old_name"], change["notes"]]]
                     rules["_REMOVED_MODELS"]["doc"].extend(new_rules)
 
-                if (
+                elif (
                     change["change_type"] == "remove"
                     and change["model_type"] == "field"
                 ):
@@ -216,7 +217,7 @@ class BaseMigrationScript(object):
                     new_rules = [[change["model"], change["old_name"], change["notes"]]]
                     rules["_REMOVED_FIELDS"]["doc"].extend(new_rules)
 
-                if (
+                elif (
                     change["change_type"] == "rename"
                     and change["model_type"] == "xmlid"
                 ):
@@ -233,7 +234,7 @@ class BaseMigrationScript(object):
                     warnings[change["old_name"]] = change["new_name"]
                     rules["_TEXT_REPLACES"]["doc"]["*"] = warnings
 
-                if (
+                elif (
                     change["change_type"] == "remove"
                     and change["model_type"] == "xmlid"
                 ):
@@ -242,7 +243,7 @@ class BaseMigrationScript(object):
                     warnings[change["old_name"]] = change["notes"]
                     rules["_TEXT_WARNINGS"]["doc"]["*"] = warnings
 
-                if (
+                elif (
                     change["change_type"] == "change_type"
                     and change["model_type"] == "field"
                 ):
@@ -260,7 +261,7 @@ class BaseMigrationScript(object):
                     )
                     rules["_TEXT_WARNINGS"]["doc"][".py"] = warnings
 
-                if (
+                elif (
                     change["change_type"] == "remove"
                     and change["model_type"] == "selection_value"
                 ):
@@ -277,6 +278,37 @@ class BaseMigrationScript(object):
                         model_info + field_info + change["notes"]
                     )
                     rules["_TEXT_WARNINGS"]["doc"]["*"] = warnings
+
+                elif change["change_type"] == "behavior":
+                    # No symbol changed: old_name is a regex for the risky usage
+                    try:
+                        re.compile(change["old_name"])
+                    except (re.error, TypeError):
+                        logger.warning(
+                            "Version change %s skipped: old_name %r is not a valid regex"
+                            % (change_id, change["old_name"])
+                        )
+                        continue
+                    warnings = rules["_TEXT_WARNINGS"]["doc"].get("*", {})
+                    model_info = (
+                        f"On the model {change['model']}: "
+                        if change.get("model")
+                        else ""
+                    )
+                    warnings[change["old_name"]] = (
+                        "Behavior change. " + model_info + change["notes"]
+                    )
+                    rules["_TEXT_WARNINGS"]["doc"]["*"] = warnings
+
+                else:
+                    key = "%s/%s" % (change["change_type"], change["model_type"])
+                    unhandled[key] = unhandled.get(key, 0) + 1
+
+            if unhandled:
+                logger.debug(
+                    "Version changes without a migration rule: %s"
+                    % ", ".join("%s: %s" % item for item in sorted(unhandled.items()))
+                )
 
         # extend
         for rule, data in rules.items():
